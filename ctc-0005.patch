@@ -1,0 +1,22 @@
+diff --git a/airoha-pon-daemons/src/src/oam/ctc.rs b/airoha-pon-daemons/src/src/oam/ctc.rs
+index 58cf5d0..52667d9 100644
+--- a/airoha-pon-daemons/src/src/oam/ctc.rs
++++ b/airoha-pon-daemons/src/src/oam/ctc.rs
+@@ -34,6 +34,7 @@ const LEAF_CHIPSET_ID: u16 = 0x0003;
+ const LEAF_ONU_CAPABILITIES_1: u16 = 0x0004;
+ const LEAF_ONU_CAPABILITIES_2: u16 = 0x0007;
+ const LEAF_ONU_CAPABILITIES_3: u16 = 0x000c;
++const LEAF_ONU_AUTH_INFO: u16 = 0x0005;
+ const LEAF_VLAN: u16 = 0x0021;
+ 
+ const SET_OK: u8 = 0x80;
+@@ -496,6 +497,9 @@ impl CtcSession {
+                 Ok(value)
+             }
+             LEAF_ONU_CAPABILITIES_3 if object.is_none() => Ok(vec![0, 0, 1]),
++            LEAF_ONU_AUTH_INFO if object.is_none() => Ok(Vec::from([
++                0x31, 0x4c, 0x7e, 0x0d, 0x19, 0xc8, 0x3f, 0x67, 0x00, 0x37,
++            ])),
+             LEAF_VLAN => {
+                 let object = object.ok_or(BAD_PARAMETERS)?;
+                 if object.leaf != OBJECT_LEAF_PORT {
