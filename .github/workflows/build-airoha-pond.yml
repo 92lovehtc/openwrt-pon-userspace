@@ -1,0 +1,25 @@
+name: build-airoha-pond
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup target add aarch64-unknown-linux-musl
+      - run: |
+          git apply --check ctc-0005.patch
+          git apply ctc-0005.patch
+      - name: Build
+        working-directory: airoha-pon-daemons/src
+        run: |
+          cargo build --release --target aarch64-unknown-linux-musl
+          file target/aarch64-unknown-linux-musl/release/airoha-pond
+      - uses: actions/upload-artifact@v4
+        with:
+          name: airoha-pond-aarch64-musl
+          path: airoha-pon-daemons/src/target/aarch64-unknown-linux-musl/release/airoha-pond
