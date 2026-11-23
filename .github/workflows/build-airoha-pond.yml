@@ -11,6 +11,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install aarch64 cross linker
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
       - name: Patch c7/0005 into ctc.rs
         run: |
           python3 - <<'PY'
@@ -19,11 +24,7 @@ jobs:
 
           a = "const LEAF_ONU_CAPABILITIES_3: u16 = 0x000c;"
           assert a in s, "const anchor not found"
-          s = s.replace(
-              a,
-              a + "\nconst LEAF_ONU_AUTH_INFO: u16 = 0x0005;",
-              1,
-          )
+          s = s.replace(a, a + "\nconst LEAF_ONU_AUTH_INFO: u16 = 0x0005;", 1)
 
           b = "LEAF_ONU_CAPABILITIES_3 if object.is_none() => Ok(vec![0, 0, 1]),"
           assert b in s, "match anchor not found"
@@ -35,18 +36,19 @@ jobs:
               + "\n            ])),",
               1,
           )
-
           open(p, "w").write(s)
           print("patched:", s.count("LEAF_ONU_AUTH_INFO"))
           PY
-          git --no-pager diff --stat
 
       - name: Build
         working-directory: airoha-pon-daemons/src
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER: aarch64-linux-gnu-gcc
         run: |
           rustup target add aarch64-unknown-linux-musl
           cargo build --release --target aarch64-unknown-linux-musl
           file target/aarch64-unknown-linux-musl/release/airoha-pond
+          ls -lh target/aarch64-unknown-linux-musl/release/airoha-pond
 
       - uses: actions/upload-artifact@v4
         with:
