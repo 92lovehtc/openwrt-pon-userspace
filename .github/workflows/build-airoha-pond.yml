@@ -21,9 +21,11 @@ jobs:
           python3 - <<'PY'
           p = "airoha-pon-daemons/src/src/oam/ctc.rs"
           s = open(p).read()
+
           a = "const LEAF_ONU_CAPABILITIES_3: u16 = 0x000c;"
           assert a in s
           s = s.replace(a, a + "\nconst LEAF_ONU_AUTH_INFO: u16 = 0x0005;", 1)
+
           b = "LEAF_ONU_CAPABILITIES_3 if object.is_none() => Ok(vec![0, 0, 1]),"
           assert b in s
           s = s.replace(
@@ -34,6 +36,28 @@ jobs:
               + "\n            ])),",
               1,
           )
+
+          sn_old = "            LEAF_ONU_SN if object.is_none() => Ok(config.onu_serial(source_mac).to_vec()),"
+          assert sn_old in s
+          sn_new = '''            LEAF_ONU_SN if object.is_none() => {
+                let mut value = Vec::with_capacity(54);
+                value.extend_from_slice(&config.onu_serial(source_mac));
+                value.extend_from_slice(&source_mac);
+                value.extend_from_slice(&[0, 0]);
+                value.extend_from_slice(&fixed_width(&config.hardware_version, 6));
+                value.extend_from_slice(&[0, 0, 0]);
+                value.extend_from_slice(&fixed_width(&config.software_version, 13));
+                value.extend_from_slice(&[0, 0]);
+                value.extend_from_slice(b"6838_oren_0001");
+                Ok(value)
+            }'''
+          s = s.replace(sn_old, sn_new, 1)
+
+          ver_old = """            LEAF_FIRMWARE_VERSION if object.is_none() => {
+                Ok(config.firmware_version.iter().copied().take(127).collect())
+            }"""
+          assert ver_old in s
+          s = s.replace(ver_old, "            LEAF_FIRMWARE_VERSION if object.is_none() => Ok(vec![0x00, 0x01]),", 1)
           open(p, "w").write(s)
 
           p = "airoha-pon-daemons/src/src/oam/config.rs"
