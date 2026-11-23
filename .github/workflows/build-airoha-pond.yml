@@ -23,11 +23,11 @@ jobs:
           s = open(p).read()
 
           a = "const LEAF_ONU_CAPABILITIES_3: u16 = 0x000c;"
-          assert a in s
+          assert a in s, "const anchor"
           s = s.replace(a, a + "\nconst LEAF_ONU_AUTH_INFO: u16 = 0x0005;", 1)
 
           b = "LEAF_ONU_CAPABILITIES_3 if object.is_none() => Ok(vec![0, 0, 1]),"
-          assert b in s
+          assert b in s, "match anchor"
           s = s.replace(
               b,
               b
@@ -38,37 +38,39 @@ jobs:
           )
 
           sn_old = "            LEAF_ONU_SN if object.is_none() => Ok(config.onu_serial(source_mac).to_vec()),"
-          assert sn_old in s
-          sn_new = '''            LEAF_ONU_SN if object.is_none() => {
-                let mut value = Vec::with_capacity(54);
-                value.extend_from_slice(&config.onu_serial(source_mac));
-                value.extend_from_slice(&source_mac);
-                value.extend_from_slice(&[0, 0]);
-                value.extend_from_slice(&fixed_width(&config.hardware_version, 6));
-                value.extend_from_slice(&[0, 0, 0]);
-                value.extend_from_slice(&fixed_width(&config.software_version, 13));
-                value.extend_from_slice(&[0, 0]);
-                value.extend_from_slice(b"6838_oren_0001");
-                Ok(value)
-            }'''
+          assert sn_old in s, "sn anchor"
+          sn_new = "\n".join([
+              "            LEAF_ONU_SN if object.is_none() => {",
+              "                let mut value = Vec::with_capacity(54);",
+              "                value.extend_from_slice(&config.onu_serial(source_mac));",
+              "                value.extend_from_slice(&source_mac);",
+              "                value.extend_from_slice(&[0, 0]);",
+              "                value.extend_from_slice(&fixed_width(&config.hardware_version, 6));",
+              "                value.extend_from_slice(&[0, 0, 0]);",
+              "                value.extend_from_slice(&fixed_width(&config.software_version, 13));",
+              "                value.extend_from_slice(&[0, 0]);",
+              "                value.extend_from_slice(b\"6838_oren_0001\");",
+              "                Ok(value)",
+              "            }",
+          ])
           s = s.replace(sn_old, sn_new, 1)
 
-          ver_old = """            LEAF_FIRMWARE_VERSION if object.is_none() => {
-                Ok(config.firmware_version.iter().copied().take(127).collect())
-            }"""
-          assert ver_old in s
-          s = s.replace(ver_old, "            LEAF_FIRMWARE_VERSION if object.is_none() => Ok(vec![0x00, 0x01]),", 1)
+          ver_old = "Ok(config.firmware_version.iter().copied().take(127).collect())"
+          assert ver_old in s, "version anchor"
+          s = s.replace(ver_old, "Ok(vec![0x00, 0x01])", 1)
+
           open(p, "w").write(s)
 
-          p = "airoha-pon-daemons/src/src/oam/config.rs"
-          s = open(p).read()
+          p2 = "airoha-pon-daemons/src/src/oam/config.rs"
+          s2 = open(p2).read()
           c = "pub fn onu_serial(&self, source_mac: [u8; 6])"
-          assert c in s
-          s = s.replace(c, "pub fn onu_serial(&self, _source_mac: [u8; 6])", 1)
+          assert c in s2, "onu_serial anchor"
+          s2 = s2.replace(c, "pub fn onu_serial(&self, _source_mac: [u8; 6])", 1)
           d = "serial[4..].copy_from_slice(&source_mac[2..]);"
-          assert d in s
-          s = s.replace(d, "serial[4..].copy_from_slice(&fixed_width(&self.model, 4));", 1)
-          open(p, "w").write(s)
+          assert d in s2, "mac tail anchor"
+          s2 = s2.replace(d, "serial[4..].copy_from_slice(&fixed_width(&self.model, 4));", 1)
+          open(p2, "w").write(s2)
+
           print("patched OK")
           PY
 
